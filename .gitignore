@@ -2,9 +2,13 @@
 __pycache__/
 *.py[cod]
 
-# Swap files in vim
-.*sw[op]
-*.*~
+# vim
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+*.un~
+Session.vim
+.netrwhist
+*~
 
 # C extensions
 *.so
