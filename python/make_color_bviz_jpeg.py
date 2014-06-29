@@ -5,17 +5,17 @@ import numpy as np
 import nw
 
 try:
-    from astropy.io import fits as P
+    from astropy.io import fits
 except:
-    import pyfits as P
+    import pyfits as fits
 
 basepath = '..'
 
-jpg_path  = '%s/jpg_thumb' % basepath
-tiff_path = '%s/tiff_thumb' % basepath
-fits_path = '%s/fits_thumb' % basepath
+jpg_path  = '%s/jpg_thumb/pythoned' % basepath
+tiff_path = '%s/tiff_thumb/pythoned' % basepath
+fits_path = '%s/fits_thumb/pythoned' % basepath
 
-def make_color_jpeg_bviz(gal,ascales,anonlinearity,aresizefactor):
+def make_jpeg(gal,ascales,anonlinearity,npix_final,desaturate=True,show_img=True):
 
     input_oid = gal['UID_MOSAIC']
     id_str = 'g%s' % input_oid
@@ -27,9 +27,9 @@ def make_color_jpeg_bviz(gal,ascales,anonlinearity,aresizefactor):
     a_pix = max(gal['A_IMAGE_Z'], gal['A_IMAGE_I'], gal['A_IMAGE_V'], gal['A_IMAGE_B'])
     kron_r = max(gal['KRON_RADIUS_Z'], gal['KRON_RADIUS_I'], gal['KRON_RADIUS_V'], gal['KRON_RADIUS_B'])
     obj_size_pix = a_pix * kron_r
-    
-    img_size_hstpix = 2.7 * obj_size_pix
-    
+
+    img_size_hstpix = 2.5 * obj_size_pix
+
     # Sanity checks -- don't zoom in too far
     img_size_hstpix = max(img_size_hstpix, 120.)
     
@@ -39,17 +39,17 @@ def make_color_jpeg_bviz(gal,ascales,anonlinearity,aresizefactor):
     aresizefactor = npix_final / img_size_hstpix
 
     # Print re-sizing parameters to screen
-    print a_pix, kron_r, img_size_hstpix, aresizefactor
+    print 'Semi-major axis [pix]: %f\n Kron radius [pix]: %f\n Image size [pix]: %f\n Resize factor: %f' % (a_pix, kron_r*a_pix, img_size_hstpix, aresizefactor)
 
     # Load FITS data from existing cutouts
 
-    with fits.open('%s/%s_s%s_thumb.fits' % (basepath,id_str,'b')) as f:
+    with fits.open('%s/fits_thumb/%s_s%s_thumb.fits' % (basepath,id_str,'b')) as f:
         img_b = f[0].data
-    with fits.open('%s/%s_s%s_thumb.fits' % (basepath,id_str,'v')) as f:
+    with fits.open('%s/fits_thumb/%s_s%s_thumb.fits' % (basepath,id_str,'v')) as f:
         img_v = f[0].data
-    with fits.open('%s/%s_s%s_thumb.fits' % (basepath,id_str,'i')) as f:
+    with fits.open('%s/fits_thumb/%s_s%s_thumb.fits' % (basepath,id_str,'i')) as f:
         img_i = f[0].data
-    with fits.open('%s/%s_s%s_thumb.fits' % (basepath,id_str,'z')) as f:
+    with fits.open('%s/fits_thumb/%s_s%s_thumb.fits' % (basepath,id_str,'z')) as f:
         img_z = f[0].data
 
     # Check that all image sizes and shapes match
@@ -69,10 +69,29 @@ def make_color_jpeg_bviz(gal,ascales,anonlinearity,aresizefactor):
 
     RGBim = np.array([rimage,gimage,bimage])
     
-    RGBim_scaled = nw.scale_rgb(RGBim,scales=ascales)
-    RGBim_arcsinh = nw.arcsinh_fit(RGBim_scaled,nonlinearity=anonlinearity)
-    RGBim_boxed = nw.fit_to_box(RGBim_arcsinh,origin=aorigin)
-    RGBim_byte = nw.float_to_byte(RGBim_byte)
+    RGBim = nw.scale_rgb(RGBim,scales=ascales)
+    RGBim = nw.arcsinh_fit(RGBim,nonlinearity=anonlinearity)
+    RGBim = nw.fit_to_box(RGBim)
+
+
+    if desaturate:
+        # optionally desaturate pixels that are dominated by a single
+        # colour to avoid colourful speckled sky
+        a = RGBim.mean(axis=0)
+        np.putmask(a, a == 0.0, 1.0)
+        acube = np.resize(a,(3,nx,ny))
+        bcube = (RGBim / acube) / anonlinearity
+        mask = np.array(bcube)
+        w = np.max(mask, 0)
+        np.putmask(w, w > 1.0, 1.0)
+        w = 1 - w
+        w = np.sin(w*np.pi/2.0)
+        RGBim = RGBim * w + a*(1-w)
+
+    # Convert data to scaled bytes
+    RGBim = (255.*RGBim).astype(int)
+    RGBim = np.where(RGBim>255,255,RGBim)
+    RGBim = np.where(RGBim<0,0,RGBim)
 
     # rebin
     # okay, all this currently does is resize the whole thing
@@ -81,17 +100,35 @@ def make_color_jpeg_bviz(gal,ascales,anonlinearity,aresizefactor):
     # everything but the central 424 x 424, etc.
     # I think I can do that without too much issue... I hope.
 
-    RGBim_rebinned = rebin(RGBim_byte,floor(nx*aresizefactor),(ny*aresizefactor),3)
+    if nx >= npix_final and ny >= npix_final:
+        RGBim = RGBim[:,(nx-npix_final)/2:nx - (nx-npix_final)/2,(ny-npix_final)/2:ny - (ny-npix_final)/2]
+    else:
+        print 'Image is smaller than %i pixels square (%i,%i)' % (npix_final,nx,ny)
+    # RGBim = rebin(RGBim,floor(nx*aresizefactor),(ny*aresizefactor),3)
 
-    # make image
+    R,G,B = RGBim
+    data = np.array([R.ravel(),G.ravel(),B.ravel()])
+    data = np.transpose(data)
+    pdata = []
+    # putdata(x) does not work unless the (R,G,B) is given as tuple!!
+    for each in data: 
+        pdata.append(tuple(each))
 
-    img = I.new('RGB',size=RGBim_rebinned.shape)
-    img
+    # Make image
 
-    outjpg = '%s/%s_bviz_thumb.jpg' % (jpg_path,id_str)
-    outtiff = '%s/%s_bviz_thumb.tiff' % (tiff_path,id_str)
-    tiff_desc = 'RA = %15.6f # DEC = %15.6f' % (gal['alpha_j2000_b'],gal['delta_j2000_b'])
-    WRITE_JPEG,outjpg,RGBim,TRUE=3,QUALITY=100
+    img = I.new('RGB',size=RGBim.shape[1:])
+    img.putdata(pdata)
+
+    if show_img:
+        img.show()
+
+    # Save as both JPG and TIFF
+    out_jpg = '%s/%s_bviz_thumb.jpg' % (jpg_path,id_str)
+    out_tiff = '%s/%s_bviz_thumb.tiff' % (tiff_path,id_str)
+    tiff_desc = {'RA':gal['ALPHA_J2000_B'],'DEC':gal['DELTA_J2000_B']}
+
+    img.save(out_jpg,quality=100)
+    img.save(out_tiff,quality=100,tiffinfo=tiff_desc)
 
 
     # WRITE_JPEG and WRITE_TIFF need different array formats - awesome
@@ -146,7 +183,7 @@ def run_all_images():
     
     n_imgs = 0
     for gal in finput_data:
-        make_color_jpeg_bviz(gal,ascales,anonlinearity,aresizefactor)
+        make_jpeg(gal,ascales,anonlinearity,npix_final,desaturate=True,show_img = False)
         n_imgs += 1
     
     print 'Created %i images in both JPG and TIFF formats.' % n_imgs
@@ -155,9 +192,9 @@ def run_all_images():
  
 if __name__ == '__main__':
     """test code"""
-    hdus1 = P.open('%s/f814_mosaic_wherry.fits' % basepath)
-    hdus2 = P.open('%s/f606_mosaic_wherry.fits' % basepath)
-    hdus3 = P.open('%s/f450_mosaic_wherry.fits' % basepath)
+    hdus1 = fits.open('%s/f814_mosaic_wherry.fits' % basepath)
+    hdus2 = fits.open('%s/f606_mosaic_wherry.fits' % basepath)
+    hdus3 = fits.open('%s/f450_mosaic_wherry.fits' % basepath)
 
     img1,img2,img3 = hdus1[0].data,hdus2[0].data,hdus3[0].data
 

@@ -1,5 +1,4 @@
 import numpy as np
-from math import asinh
 
 #+
 #NAME:
@@ -27,12 +26,14 @@ def arcsinh_fit(colors,nonlinearity=3.):
     
     color_arr = np.array(colors)
 
-    radius = color_arr.sum(axis=0)
-    radius[radius == 0] += 1
+    if nonlinearity != 0:
+        radius = color_arr.sum(axis=0)
+        radius[radius == 0] += 1
 
-    val = asinh(radius*nonlinearity)/nonlinearity if nonlinearity != 0. else 0.
-    
-    fitted_colors = color_arr * val / radius
+        val = np.arcsinh(radius*nonlinearity)/nonlinearity
+        fitted_colors = color_arr * val / radius
+    else:
+        fitted_colors = color_arr
 
     return fitted_colors
 
@@ -60,7 +61,6 @@ def arcsinh_fit(colors,nonlinearity=3.):
 def fit_to_box(colors,origin=[0,0,0]):
 
     color_arr = np.array(colors)
-    nx,ny = color_arr.shape
     
     # Creates an 'origin' array
     origin_arr = np.zeros_like(color_arr)
