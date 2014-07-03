@@ -2,24 +2,23 @@ import numpy as np
 
 #+
 #NAME:
-#  nw_arcsinh_fit
+#  arcsinh_fit
 #PURPOSE:
-#  scales the fits image by a degree of nonlinearity specified by user
+#  scales the FITS image by a specified degree of nonlinearity
 #INPUTS:
-#  colors      - (NXxNYx3) array that contains the R/G/B images
+#  colors      - (3xNXxNY) numpy array that contains the R/G/B images
 #OPTIONAL INPUTS:
 #  nonlinearity- 'b'
-#              - b=0 for linear fit, b=Inf for logarithmic
+#              - b=0 for linear fit
 #              - default is 3
 #KEYWORDS:
 #
 #OUTPUTS:
-#  The image
+#  Scaled FITS image
 #BUGS:
 #  
 #REVISION HISTORY:
-#  11/07/03 written - wherry
-#  11/12/03 changed radius - wherry
+#  2 Jul 2014 - ported from Nick Wherry's IDL routine NW_ARCSINH_FIT - K. Willett
 #-
 
 def arcsinh_fit(colors,nonlinearity=3.):
@@ -39,7 +38,7 @@ def arcsinh_fit(colors,nonlinearity=3.):
 
 #+
 #NAME:
-#  nw_fit_to_box
+#  fit_to_box
 #PURPOSE:
 #  Limits the pixel values of the image to a 'box', so that the colors
 #  do not saturate to white but to a specific color.
@@ -55,8 +54,7 @@ def arcsinh_fit(colors,nonlinearity=3.):
 #BUGS:
 #  
 #REVISION HISTORY:
-#  11/07/03 written - wherry
-#  11/12/03 changed default origin - wherry
+#  2 Jul 2014 - ported from Nick Wherry's IDL routine NW_FIT_TO_BOX - K. Willett
 #-
 def fit_to_box(colors,origin=[0,0,0]):
 
@@ -79,7 +77,7 @@ def fit_to_box(colors,origin=[0,0,0]):
 
 #+
 #NAME:
-#  nw_float_to_byte
+#  float_to_byte
 #PURPOSE:
 #  Converts floats of an array to bytes
 #INPUTS:
@@ -91,7 +89,7 @@ def fit_to_box(colors,origin=[0,0,0]):
 #OUTPUTS:
 #  The float-value image
 #REVISION HISTORY:
-#  10/03/03 written - wherry
+#  2 Jul 2014 - ported from Nick Wherry's IDL routine NW_FLOAT_TO_BYTE - K. Willett
 #-
 def float_to_byte(image):
     byte_image = bytearray(image)
@@ -100,15 +98,15 @@ def float_to_byte(image):
 
 #+
 #NAME:
-#  nw_scale_rgb
+#  scale_rgb
 #PURPOSE:
 #  mulitiplies the RGB image by their respective scales
 #CALLING SEQUENCE:
 #  nw_scale_rgb, colors, [scales=]
 #INPUTS:
-#  colors      - (NXxNYx3) array containing the R, G, and B
+#  colors      - (3xNXxNY) array containing the R, G, and B
 #OPTIONAL INPUTS:
-#  scales      - (3x1) array to scale the R/G/B
+#  scales      - list of len(3) to scale the R/G/B
 #              - defaults are [4.9,5.7,7.8]
 #KEYWORDS:
 #  none
@@ -119,7 +117,7 @@ def float_to_byte(image):
 #DEPENDENCIES:
 #
 #REVISION HISTORY:
-#  11/07/03 written - wherry
+#  2 Jul 2014 - ported from Nick Wherry's IDL routine NW_SCALE_RGB - K. Willett
 #-
 def scale_rgb(colors,scales=[4.9,5.7,7.8]):
 
