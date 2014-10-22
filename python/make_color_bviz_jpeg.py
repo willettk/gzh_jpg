@@ -238,7 +238,7 @@ def run_all_images(load_from_mosaic=True):
                 # Make the JPEG image
                 make_jpeg(gal,\
                     color_scheme='bviz',
-                    desaturate=True,show_img = False,\
+                    desaturate=False,show_img = False,\
                     load_from_mosaic = True, mosaics = (img_b,img_v,img_i,img_z))
                 '''
                 make_jpeg(gal,\
