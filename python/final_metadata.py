@@ -1,4 +1,5 @@
 gzh_dir = '/Users/willettk/Astronomy/meetings/uk2014/gzh_jpg'
+ext_dir = '/Volumes/3TB/gz4/GOODS_full'
 
 from astropy.io import fits
 from astropy.table import Table
@@ -31,11 +32,20 @@ def choose_redshift(data):
 
 zarr = choose_redshift(data)
 
+# Calculate absolute size in kpc
+
+from astropy.cosmology import WMAP9
+from astropy import units as u
+
+size = [WMAP9.kpc_proper_per_arcmin(z).to(u.kpc/u.arcsec) * (r * u.arcsec) if z > 0 else -99. * u.kpc for z,r in zip(zarr,data['KRON_RADIUS_I'])]
+#re = 0.162 * data['FLUX_RADIUS1_B_1']**1.87
+absmag = [zmag * u.mag - WMAP9.distmod(z) if z > 0 else -99. * u.mag for z,zmag in zip(zarr,data['Z_1'])]
+
 data.rename_column('hubble_id_1'     , 'hubble_id'      )
-data.rename_column('coords_ra_1'     , 'coords_ra')
-data.rename_column('coords_dec_1'    , 'coords_dec')
-data.rename_column('KRON_RADIUS_B_1' , 'KRON_RADIUS_B')
-data.rename_column('FLUX_RADIUS1_B_1', 'FLUX_RADIUS1_B')
+data.rename_column('coords_ra_1'     , 'ra')
+data.rename_column('coords_dec_1'    , 'dec')
+data.rename_column('KRON_RADIUS_I' , 'kron_radius_I')
+data.rename_column('FLUX_RADIUS1_I', 'flux_radius1_I')
 data.rename_column('B_1'             , 'B')
 data.rename_column('V_1'             , 'V')
 data.rename_column('I_1'             , 'I')
@@ -44,7 +54,11 @@ data.rename_column('group_type_1'    , 'group_type')
 data.rename_column('retire_at_1'     , 'retire_at')
 data.rename_column('survey_1'        , 'survey')
 data.rename_column('depth_1'         , 'depth')
-data.rename_column('camera_1'        , 'camera')
+del data['KRON_RADIUS_B_1']
+del data['FLUX_RADIUS1_B_1']
+del data['depth']
+del data['survey']
+del data['camera_1']
 del data['hubble_id_2']
 del data['coords_ra_2']
 del data['coords_dec_2']
@@ -129,8 +143,17 @@ del data['dec_griffith']
 del data['z_spec_griffith']
 del data['z_peak_griffith']
 del data['Separation_4']
-data['best_z'] = zarr
 
-data.write('%s/metadata.fits' % gzh_dir,format='fits')
+data['redshift'] = zarr
+data['survey'] = ['goods_full'] * len(data)
+
+sizearr = [s.value for s in size]
+absmagarr = [m.value for m in absmag]
+data['absolute_size'] = sizearr
+data['absmag_Z'] = absmagarr
+
+# Add location
+
+data.write('%s/goods_full_metadata.fits' % ext_dir,format='fits',overwrite=True)
 
 # Decide on final fields, compute distances and sizes from astropy.cosmology
