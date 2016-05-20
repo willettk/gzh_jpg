@@ -153,7 +153,7 @@ def make_jpeg(gal,color_scheme='bviz',field='s',desaturate=False,show_img=True,l
     # Load FITS data from existing cutouts
 
     else:
-        with fits.open('%s/%s_s%s.fits' % (fits_path,id_str,'b')) as f:
+        with fits.open('%s/%s_s%s_thumb.fits' % (fits_path,id_str,'b')) as f:
             img_b_cut = f[0].data
         with fits.open('%s/%s_s%s_thumb.fits' % (fits_path,id_str,'v')) as f:
             img_v_cut = f[0].data
